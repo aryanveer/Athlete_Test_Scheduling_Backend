@@ -98,7 +98,7 @@ def create_availability():
         # I thought about it and it made sense. The athlete shouldn't put availabilty
         # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
         # and doping testing time. We can play with it
-        if timestamp - time_obj.time() < 60 * 60 * 5:
+        if timestamp - time_obj.now().timestamp() < 60 * 60 * 5:
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "You need to give availability 12 hours in advance!"
@@ -106,7 +106,7 @@ def create_availability():
 
 
         # Athlete shouldn't be able to give availability for 10 days ahead!
-        if timestamp - time_obj.time() >= 60 * 60 * 10:
+        if timestamp - time_obj.now().timestamp() >= 60 * 60 * 10:
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "Cannot create/change availability of 10 days later!"
