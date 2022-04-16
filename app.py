@@ -125,27 +125,27 @@ def create_availability():
         # because we're going to update it with the new availability info.
         # Since the prev availability might be in any of the regions, we should try to delete each 
         
-        # db["NA-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["EU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["AS-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["AU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })        
+        db["NA-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["EU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AS-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })        
 
         # If the appointment has already been scheduled, then remove the appointment 
         # of the athlete. The appointment is always a one-to-one match with
         # athlete_email and date
         
-        # db["NA-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["EU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["AS-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
-        # db["AU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-        #                 {"date": {"$eq": date}} ] })
+        db["NA-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["EU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AS-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
             
         region_code = region_to_code[region]
         
@@ -168,7 +168,7 @@ def create_availability():
         print("PASSED CONDITIONS")
         print(athlete_availability)
         # Sharding based on region_code (continent)
-        db_addition = db[region_code + "-athletes"].insert_one({"CONOR" : "CATHEDRAL"}).inserted_id
+        db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
         
         return make_response(jsonify("athlete_availability"), 200)
     
