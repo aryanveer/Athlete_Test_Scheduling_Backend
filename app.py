@@ -70,72 +70,72 @@ def root():
 # }
 @app.route('/createAvailability', methods=['POST'])
 def create_availability():
-    # availability_data = request.get_json()
-    # athlete_email = availability_data['athlete_email']
-    # availabilities = availability_data['availabilities']
+    availability_data = request.get_json()
+    athlete_email = availability_data['athlete_email']
+    availabilities = availability_data['availabilities']
 
-    # for athlete_availability in availabilities:
-    #     region = athlete_availability['region']
-    #     country = athlete_availability['country']
-    #     location = athlete_availability['location']
-    #     #city = athlete_availability['city']
-    #     date = athlete_availability['date']  # Day/Month/Year
-    #     time = athlete_availability['time'] # e.g., 14:00:00
-    #     timestamp = float(athlete_availability['timestamp'])
+    for athlete_availability in availabilities:
+        region = athlete_availability['region']
+        country = athlete_availability['country']
+        location = athlete_availability['location']
+        #city = athlete_availability['city']
+        date = athlete_availability['date']  # Day/Month/Year
+        time = athlete_availability['time'] # e.g., 14:00:00
+        timestamp = float(athlete_availability['timestamp'])
         
-    #     # Need to compare using the time of the location in which the user will be tested!!!
-    #     # time_zone = pytz.timezone(region + "/" + city)
-    #     # local_time = datetime.now(time_zone)
+        # Need to compare using the time of the location in which the user will be tested!!!
+        # time_zone = pytz.timezone(region + "/" + city)
+        # local_time = datetime.now(time_zone)
         
-    #     # Athlete is trying to schedule during the same day!!!
-    #     if date == time_obj.today().strftime('%d/%m/%Y'):
-    #         response = {}
-    #         response["status"] = "Failed to update"
-    #         response["reason"] = "Cannot create/change availability during the same day!"
-    #         return make_response(jsonify(response), 200)
+        # Athlete is trying to schedule during the same day!!!
+        if date == time_obj.today().strftime('%d/%m/%Y'):
+            response = {}
+            response["status"] = "Failed to update"
+            response["reason"] = "Cannot create/change availability during the same day!"
+            return make_response(jsonify(response), 200)
         
-    #     # I thought about it and it made sense. The athlete shouldn't put availabilty
-    #     # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
-    #     # and doping testing time. We can play with it
-    #     if timestamp - time_obj.time() < 60 * 60 * 12:
-    #         return_obj = {}
-    #         return_obj["status"] = "Failed to update"
-    #         return_obj["reason"] = "You need to give availability 12 hours in advance!"
-    #         return make_response(jsonify(return_obj), 200)
+        # I thought about it and it made sense. The athlete shouldn't put availabilty
+        # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
+        # and doping testing time. We can play with it
+        if timestamp - time_obj.time() < 60 * 60 * 12:
+            return_obj = {}
+            return_obj["status"] = "Failed to update"
+            return_obj["reason"] = "You need to give availability 12 hours in advance!"
+            return make_response(jsonify(return_obj), 200)
 
 
-    #     # Athlete shouldn't be able to give availability for 10 days ahead!
-    #     if timestamp - time_obj.time() >= 60 * 60 * 10:
-    #         return_obj = {}
-    #         return_obj["status"] = "Failed to update"
-    #         return_obj["reason"] = "Cannot create/change availability of 10 days later!"
-    #         return make_response(jsonify(return_obj), 200)
+        # Athlete shouldn't be able to give availability for 10 days ahead!
+        if timestamp - time_obj.time() >= 60 * 60 * 10:
+            return_obj = {}
+            return_obj["status"] = "Failed to update"
+            return_obj["reason"] = "Cannot create/change availability of 10 days later!"
+            return make_response(jsonify(return_obj), 200)
 
-    #     # If user already had an appointment for that particular day, remove it
-    #     # because we're going to update it with the new availability info.
-    #     # Since the prev availability might be in any of the regions, we should try to delete each 
-    #     db["NA-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["EU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["AS-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["AU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })        
+        # If user already had an appointment for that particular day, remove it
+        # because we're going to update it with the new availability info.
+        # Since the prev availability might be in any of the regions, we should try to delete each 
+        db["NA-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["EU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AS-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AU-athletes"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })        
 
-    #     # If the appointment has already been scheduled, then remove the appointment 
-    #     # of the athlete. The appointment is always a one-to-one match with
-    #     # athlete_email and date
-    #     db["NA-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["EU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["AS-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
-    #     db["AU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-    #                     {"date": {"$eq": date}} ] })
+        # If the appointment has already been scheduled, then remove the appointment 
+        # of the athlete. The appointment is always a one-to-one match with
+        # athlete_email and date
+        db["NA-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["EU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AS-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
+        db["AU-assignments"].delete({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+                        {"date": {"$eq": date}} ] })
             
-    #     region_code = region_to_code[region]
+        region_code = region_to_code[region]
         
         # This is a sample entry added to our db (1 availability)
         # for each availability, we have an object of the same type.
@@ -152,12 +152,11 @@ def create_availability():
 #          },
         
         # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
-        #athlete_availability['isScheduled'] = False
+        athlete_availability['isScheduled'] = False
         # Sharding based on region_code (continent)
-        athlete_availability = {"Conor":"Church"}
-        db_addition = db["NA" + "-athletes"].insert_one(athlete_availability)
+        db_addition = db[region_code + "-athletes"].insert_one({"random_id" : {"Conor":"Church"}}).inserted_id
         
-        return make_response(jsonify(athlete_availability), 200)
+        return make_response(jsonify("athlete_availability"), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
