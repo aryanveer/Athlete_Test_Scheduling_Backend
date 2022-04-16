@@ -4,7 +4,6 @@ import random
 import datetime
 import time
 from urllib import response
-import pytz
 from flask import Flask, jsonify, request, make_response
 from bson.json_util import dumps
 from flask_cors import CORS
