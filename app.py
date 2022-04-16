@@ -71,16 +71,12 @@ def root():
 @app.route('/createAvailability', methods=['POST'])
 def create_availability():
     availability_data = request.get_json()
-    #print(availability_data)
     athlete_email = availability_data['athlete_email']
     availabilities = availability_data['availabilities']
-    #print(availabilities)
-    #print(type(availabilities))
 
+    time_now = time_obj.now().timestamp()
+    
     for athlete_availability in availabilities:
-        #athlete_availability = athlete_availability.to_dict()
-        #print(type(athlete_availability))
-        #print(athlete_availability)
         region = athlete_availability['region']
         country = athlete_availability['country']
         location = athlete_availability['location']
@@ -88,7 +84,8 @@ def create_availability():
         date = athlete_availability['date']  # Day/Month/Year
         daytime = athlete_availability['time'] # e.g., 14:00:00
         timestamp = float(athlete_availability['timestamp'])
-        difference = datetime.datetime.strptime(date + daytime, '%d/%m/%Y%H:%M') - datetime.datetime.now()
+        # print('timestamp = ' + str(timestamp))
+        # print('difference = ' + str(timestamp - time_obj.now().timestamp()))
         
         # Need to compare using the time of the location in which the user will be tested!!!
         # time_zone = pytz.timezone(region + "/" + city)
@@ -100,26 +97,26 @@ def create_availability():
             response = {}
             response["status"] = "Failed to update"
             response["reason"] = "Cannot create/change availability during the same day!"
-            return make_response(jsonify(response), 200)
+            return make_response(jsonify(response), 406)
         
         # I thought about it and it made sense. The athlete shouldn't put availabilty
         # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
         # and doping testing time. We can play with it
-        if int(round((difference.total_seconds()) / 60 * 60)) < 5:
+        if timestamp - time_now < 12 * 60 * 60:
             print("cant < 5 hours")
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "You need to give availability 12 hours in advance!"
-            return make_response(jsonify(return_obj), 200)
+            return make_response(jsonify(return_obj), 406)
 
 
         # Athlete shouldn't be able to give availability for 10 days ahead!
-        if difference.days > 10:
+        if timestamp - time_now > 10 * 24 * 60 * 60:
             print("cant give 10 days ahead")
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "Cannot create/change availability of 10 days later!"
-            return make_response(jsonify(return_obj), 200)
+            return make_response(jsonify(return_obj), 406)
 
         # If user already had an appointment for that particular day, remove it
         # because we're going to update it with the new availability info.
@@ -170,7 +167,7 @@ def create_availability():
         # Sharding based on region_code (continent)
         db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
         
-        return make_response(jsonify("athlete_availability"), 200)
+        return make_response(jsonify(athlete_availability), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
@@ -247,7 +244,18 @@ def schedule_testing():
                               
         response = {"status" : "Success"}
         return make_response(jsonify(response), 200)                    
+
+# @app.route('/createTesters', methods=['POST'])
+# def create_testers():
+#     tester_data = request.get_json()
+    
+#     region_code = region_to_code[tester_data['region']]
+#     db_addition = db[region_code + "-testers"].insert_one(tester_data).inserted_id
         
+#     return make_response(jsonify(tester_data), 200)
+
+
+ 
 
 @app.route('/getTesterSchedule/<tester_email>', methods=['GET'])
 def get_tester_schedule(tester_email):
