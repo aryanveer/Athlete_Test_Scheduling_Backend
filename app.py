@@ -75,6 +75,7 @@ def create_availability():
     availabilities = availability_data['availabilities']
 
     for athlete_availability in availabilities:
+        athlete_availability = athlete_availability.to_dict()
         region = athlete_availability['region']
         country = athlete_availability['country']
         location = athlete_availability['location']
