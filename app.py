@@ -155,9 +155,9 @@ def create_availability():
         # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
         athlete_availability['isScheduled'] = False
         # Sharding based on region_code (continent)
-        db_addition = db[region_code + "-athletes"].insert_one({"random_id" : athlete_availability}).inserted_id
+        db_addition = db[region_code + "-athletes"].insert_one({"random_id" : {"CONOR" : "CATHEDRAL"}}).inserted_id
         
-        return make_response(jsonify(athlete_availability), 200)
+        return make_response(jsonify("athlete_availability"), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
