@@ -16,7 +16,7 @@ app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 client = MongoClient(os.getenv(CONNECTION_STRING))
-db = client.EuropeDB  
+db = client['EuropeDB']  
 
 time_obj = datetime.datetime
 
