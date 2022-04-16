@@ -16,7 +16,7 @@ app = Flask(__name__)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 client = MongoClient(os.getenv(CONNECTION_STRING))
-db = client.test  
+db = client.EuropeDB  
 
 time_obj = datetime.datetime
 
@@ -36,7 +36,7 @@ continent_to_countries = {'Europe' : ['France', 'Ireland', 'England'],
 
 @app.route('/')
 def root():
-    return make_response("ouba", 200)
+    return make_response("ouba eeee", 200)
 
 
 # creating availability endpoint. This is where the user will 'POST'
