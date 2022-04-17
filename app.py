@@ -27,10 +27,10 @@ region_to_code = {
     "Australia" : "AU"
 }
 
-continent_to_countries = {'Europe' : ['France', 'Ireland', 'England'],
-                          'North America' : ['Canada', 'America'],
-                          'Asia' : ['China', 'India', 'Japan'],
-                          'Australia' : ['Australia']}
+continent_to_countries = {'EU' : ['France', 'Ireland', 'England'],
+                          'NA' : ['Canada', 'America'],
+                          'AS' : ['China', 'India', 'Japan'],
+                          'AU' : ['Australia']}
 
 
 
@@ -166,8 +166,8 @@ def create_availability():
         print(athlete_availability)
         # Sharding based on region_code (continent)
         db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
-        
-        return make_response(jsonify('athlete_availability'), 200)
+    
+    return make_response(jsonify('athlete_availability'), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
@@ -176,20 +176,21 @@ def create_availability():
 
 
 # FUN PART :)
-@app.route('/scheduleTesting', methods=['POST'])
-def schedule_testing():
+@app.route('/scheduleTesting/<continent_code>', methods=['GET'])
+def schedule_testing(continent_code):
     # NA, EU, AS, AU ==> for sharding purposes only pass one for each 'schedule testing'
     # I hardcoded the region code on purpose.
-    continent_code = 'EU'
+    response_assignments = []
     curr_timestamp = time.time()
     for country in continent_to_countries[continent_code]:
-        athlete_availabilities = db[continent_code + "-athletes"].find({"$and": [{"isScheduled": {"$eq": False}}, 
+        athlete_availabilities = list(db[continent_code + "-athletes"].find({"$and": [{"isScheduled": {"$eq": False}}, 
                                                                              {"timestamp": {"$gt": curr_timestamp}},
-                                                                             {"country": {"$eq": country}}]}) 
-        all_testers = db[continent_code + "-testers"].find({"country": {"$eq": country}}) 
+                                                                             {"country": {"$eq": country}}]})) 
+        all_testers = list(db[continent_code + "-testers"].find({"country": {"$eq": country}}))
+        print("ALL TESTERS ??====> " + str(all_testers))
         
-        scheduled_testings = db[continent_code + "-assignments"].find({"$and": [{"timestamp": {"$gt": curr_timestamp}},
-                                                                             {"country": {"$eq": country}}]}) 
+        scheduled_testings = list(db[continent_code + "-assignments"].find({"$and": [{"timestamp": {"$gt": curr_timestamp}},
+                                                                             {"country": {"$eq": country}}]})) 
         
         athlete_to_times = defaultdict(set)
         booked_times_to_testers = defaultdict(set)
@@ -201,6 +202,7 @@ def schedule_testing():
         for agnt in all_testers:
             testers_emails.add(agnt['tester_email'])
         
+        #print("TESTERS ==> " + str(testers_emails))
         # Keep track of every tester's already booked dates
         # This is to prevent double booking the same tester to different athletes at the same time
         for appointment in scheduled_testings:
@@ -220,11 +222,12 @@ def schedule_testing():
         for athlete in athletes_emails:
             for requested_time in athlete_to_times[athlete]:
                 testing_possibility = random.randint(0, 9)
-                if testing_possibility > 7:
+                if testing_possibility > 2:
                     unavailable_testers = booked_times_to_testers[requested_time]
-                    available_testers = all_testers - unavailable_testers
+                    available_testers = testers_emails - unavailable_testers
+                    print("AVAILABLE TESTERS: " + str(available_testers))
                     if available_testers:
-                        assigned_tester = available_testers[0]
+                        assigned_tester = available_testers.pop()
                         booked_times_to_testers[requested_time].add(assigned_tester) # Flag it as scheduled tester at the particular time!
                         # the key here is ==> sedat@gmail.com_24/04/2022_17:30:00 --> there can only be one such key! Thus, no ambiguity!
                         athlete_doc = availability_to_athlete[athlete + "_" + requested_time]
@@ -235,6 +238,8 @@ def schedule_testing():
                                             "date" : athlete_doc["date"], "time" : athlete_doc["time"], 
                                             "timestamp" : athlete_doc["timestamp"], "location" : athlete_doc["location"]}
                         
+                        response_assignments.append(assignment_entry)
+                        
                         # Add the scheduled testing
                         db[continent_code + "-assignments"].insert_one(assignment_entry)
                         
@@ -242,7 +247,9 @@ def schedule_testing():
                         db[continent_code + "-athletes"].update_one({'athlete_email': athlete, 'date':athlete_doc["date"]},
                                                                    {"$set": { 'isScheduled': True }} )
                               
-        response = {"status" : "Success"}
+        if response_assignments:
+            response = response_assignments
+        else: response = {"scheduled_athletes" : "NONE"}
         return make_response(jsonify(response), 200)                    
 
 # @app.route('/createTesters', methods=['POST'])
