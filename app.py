@@ -5,7 +5,7 @@ import datetime
 import time
 from urllib import response
 
-from bson import json_util
+from bson import json_util, ObjectId
 from flask import Flask, jsonify, request, make_response
 from bson.json_util import dumps
 from flask_cors import CORS
@@ -167,9 +167,7 @@ def create_availability():
         # Sharding based on region_code (continent)
         db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
 
-        
         return make_response(jsonify('athlete_availability'), 200)
-
 
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
@@ -242,7 +240,9 @@ def schedule_testing():
                         assignment_entry = {"athlete_email": athlete, "tester_email": assigned_tester,
                                             "country": athlete_doc["country"], "region": athlete_doc["region"],
                                             "date": athlete_doc["date"], "time": athlete_doc["time"],
-                                            "timestamp": athlete_doc["timestamp"], "location": athlete_doc["location"]}
+                                            "timestamp": athlete_doc["timestamp"], "location": athlete_doc["location"],
+                                            "status": "pending"
+                                            }
 
                         print(assignment_entry)
                         # Add the scheduled testing
@@ -268,7 +268,7 @@ def schedule_testing():
 #     return make_response(jsonify(tester_data), 200)
 
 
-@app.route('/getTesterSchedule/<tester_email>', methods=['GET'])
+@app.route('/getTesterSchedule/<string:tester_email>', methods=['GET'])
 def get_tester_schedule(tester_email):
     # NA, EU, AS, AU ==> for sharding purposes only pass one for each 'schedule testing'
     # I hardcoded the region code on purpose.
@@ -278,6 +278,13 @@ def get_tester_schedule(tester_email):
                                                                          {"timestamp": {"$gt": curr_timestamp}}]})
     response_json = dumps(tester_schedule)
     return make_response(jsonify(response_json), 200)
+
+
+@app.route('/submitTesterSchedule/<string:id>', methods=['GET'])
+def submit_schedule_result(id):
+    continent_code = 'EU'
+    update_result = db[continent_code + "-assignments"].update_one({'_id': ObjectId(id)}, {'$set': {"status": "negative"}})
+    return make_response("succeed", 200)
 
 
 if __name__ == '__main__':
