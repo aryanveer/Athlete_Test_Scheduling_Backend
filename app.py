@@ -167,7 +167,7 @@ def create_availability():
         # Sharding based on region_code (continent)
         db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
         
-        return make_response(jsonify(athlete_availability), 200)
+        return make_response(jsonify('athlete_availability'), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
