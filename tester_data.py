@@ -19,7 +19,7 @@ def populate_tester_collection():
 
         random_num = randint(0,3)
         random_name = randint(0,7)
-        data = {"tester_email": random_names[random_name]+random_num+"@gmail.com", "region": regions[random_num], "country": countries[random_num]}
+        data = {"tester_email": random_names[random_name]+str(random_num)+"@gmail.com", "region": regions[random_num], "country": countries[random_num]}
         db[collection_prefix[random_num]+"-testers"].insert_one(data).inserted_id
         i+=1
 
