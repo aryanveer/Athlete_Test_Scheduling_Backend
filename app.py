@@ -100,7 +100,6 @@ def create_availability():
                     availabilities_response.append("Not nice: " + key)
         else:
             for athlete_availability in regions_availabilities_dict[key]['availabilities']:
-                athlete_availability['athlete_email'] = athlete_email
                 region = athlete_availability['region']
                 country = athlete_availability['country']
                 location = athlete_availability['location']
@@ -186,6 +185,7 @@ def create_availability():
                 
                 # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
                 athlete_availability['isScheduled'] = False
+                athlete_availability['athlete_email'] = athlete_email
                 print("PASSED CONDITIONS")
                 #print(athlete_availability)
                 availabilities_response.append(athlete_availability)
