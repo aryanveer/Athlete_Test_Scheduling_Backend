@@ -100,6 +100,7 @@ def create_availability():
                     availabilities_response.append("Not nice: " + key)
         else:
             for athlete_availability in regions_availabilities_dict[key]['availabilities']:
+                athlete_availability['athlete_email'] = athlete_email
                 region = athlete_availability['region']
                 country = athlete_availability['country']
                 location = athlete_availability['location']
@@ -167,7 +168,7 @@ def create_availability():
                 db["AU-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
                                 {"date": {"$eq": date}} ] })
                     
-                region_code = region_to_code[key]
+                region_code = region_to_code[location]
                 
                 # This is a sample entry added to our db (1 availability)
                 # for each availability, we have an object of the same type.
