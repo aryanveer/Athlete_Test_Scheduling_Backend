@@ -167,7 +167,7 @@ def create_availability():
         # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
         athlete_availability['isScheduled'] = False
         print("PASSED CONDITIONS")
-        print(athlete_availability)
+        #print(athlete_availability)
         availabilities_response.append(athlete_availability)
         # Sharding based on region_code (continent)
         db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
