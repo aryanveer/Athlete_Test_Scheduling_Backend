@@ -36,7 +36,7 @@ continent_to_countries = {'Europe' : ['France', 'Ireland', 'England'],
 
 @app.route('/')
 def root():
-    location = os.environ["APP_NAME"]
+    location = os.environ["APP_LOCATION"]
     return make_response(location, 200)
 
 
