@@ -36,7 +36,8 @@ continent_to_countries = {'Europe' : ['France', 'Ireland', 'England'],
 
 @app.route('/')
 def root():
-    return make_response("ouba eeee", 200)
+    location = os.environ["APP_NAME"]
+    return make_response(location, 200)
 
 
 # creating availability endpoint. This is where the user will 'POST'
