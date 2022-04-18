@@ -83,7 +83,7 @@ def create_availability():
     regions_availabilities_dict = {'North America':{'athlete_email':athlete_email, 'availabilities':[]},
                                      'Europe':{'athlete_email':athlete_email, 'availabilities':[]}, 
                                     'Australia':{'athlete_email':athlete_email, 'availabilities':[]},
-                                     'Asia':{'athlete_email':athlete_email, 'availabilities':[]}]
+                                     'Asia':{'athlete_email':athlete_email, 'availabilities':[]}}
 
     for a in availabilities:
         regions_availabilities_dict[a['region']]['availabilities'].append(a)
@@ -96,9 +96,8 @@ def create_availability():
                 headers = {"x-preferred-backend": key} 
                 data = regions_availabilities_dict[key]
                 response = requests.post(url, headers=headers, json=data)
-                if(response.status_code != 200){
+                if(response.status_code != 200):
                     availabilities_response.append("Not nice: " + key)
-                }
         else:
             for athlete_availability in regions_availabilities_dict[key]['availabilities']:
                 region = athlete_availability['region']
