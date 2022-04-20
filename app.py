@@ -101,7 +101,7 @@ def create_availability():
         uuid_persisted = availability_data['uuid']
         myquery = { "uuid": uuid_persisted }
         persisted_in_db = db[region_code + "-persist"].find_one(myquery)
-        success = add_availabilities_in_db(availabilities_response, persisted_in_db)
+        success = add_availabilities_in_db(region_code, availabilities_response, persisted_in_db)
         return make_response(jsonify(json.loads(dumps(availabilities_response, indent=10))), 200)
 
     if(rollback):
@@ -166,7 +166,7 @@ def create_availability():
             else:
                 myquery = { "uuid": uuid_for_persist }
                 persisted = db[region_code + "-persist"].find_one(myquery)
-                add_availabilities_in_db(availabilities_response, persisted)
+                add_availabilities_in_db(region_code, availabilities_response, persisted)
     else:
         for key in success_count:
             if key != location:
@@ -336,7 +336,7 @@ def check_validity_for_availabilities(data):
         print("PASSED CONDITIONS")
     return 'success', True
 
-def add_availabilities_in_db(availabilities_response, persisted_data):
+def add_availabilities_in_db(region_code, availabilities_response, persisted_data):
     success = True
     email = persisted_data['athlete_email']
     for athlete_availability in persisted_data['availabilities']:
