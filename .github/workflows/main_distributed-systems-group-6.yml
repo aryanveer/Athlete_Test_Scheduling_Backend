@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - transactions
   workflow_dispatch:
 
 jobs:
