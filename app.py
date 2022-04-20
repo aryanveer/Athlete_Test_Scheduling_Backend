@@ -41,11 +41,8 @@ continent_to_countries = {'EU' : ['France', 'Ireland', 'England'],
 
 @app.route('/')
 def root():
-    persist = request.args.get('blah')
-    # location = os.environ["APP_LOCATION"]
-    if(persist):
-        print("Hi")
-    return make_response(jsonify("Working"), 200)
+    location = os.environ["APP_LOCATION"]
+    return make_response(jsonify(location), 200)
 
 
 # creating availability endpoint. This is where the user will 'POST'
