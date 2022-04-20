@@ -201,7 +201,7 @@ def create_availability():
 
 
 def delete_persisted_data(code, persisted_uuid):
-    db[code + "-persist"].delete_one({ "$and": {"uuid": {"$eq": persisted_uuid}} })
+    db[code + "-persist"].delete_one({"uuid": persisted_uuid})
 
 
 def check_validity_for_availabilities(data):
