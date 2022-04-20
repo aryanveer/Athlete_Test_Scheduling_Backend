@@ -84,8 +84,6 @@ def create_availability():
     persist = request.args.get('persist')
     commit = request.args.get('commit')
     rollback = request.args.get('rollback')
-    athlete_email = availability_data['athlete_email']
-    availabilities = availability_data['availabilities']
     location = os.environ["APP_LOCATION"]
     region_code = region_to_code[location]
 
@@ -107,6 +105,8 @@ def create_availability():
     if(rollback):
         delete_persisted_data(region_code, availability_data['uuid'])
 
+    athlete_email = availability_data['athlete_email']
+    availabilities = availability_data['availabilities']
 
     checks_response, checks_status = check_validity_for_availabilities(availabilities)
     if(checks_status is False):
