@@ -1,5 +1,6 @@
 import json
 import os
+import requests
 import random
 import datetime
 from textwrap import indent
