@@ -89,10 +89,6 @@ def create_availability():
     location = os.environ["APP_LOCATION"]
     region_code = region_to_code[location]
 
-    checks_response, checks_status = check_validity_for_availabilities(availabilities)
-    if(checks_status is False):
-        return make_response(jsonify(checks_response), 406)
-
     if(persist):
         db_addition = db[region_code + "-persist"].insert_one(availability_data).inserted_id
         if(db_addition):
@@ -111,6 +107,10 @@ def create_availability():
     if(rollback):
         delete_persisted_data(region_code, availability_data['uuid'])
 
+
+    checks_response, checks_status = check_validity_for_availabilities(availabilities)
+    if(checks_status is False):
+        return make_response(jsonify(checks_response), 406)
 
     regions_availabilities_dict = {'North America':{'athlete_email':athlete_email, 'availabilities':[]},
                                      'Europe':{'athlete_email':athlete_email, 'availabilities':[]}, 
@@ -134,7 +134,7 @@ def create_availability():
                 headers = {"x-preferred-backend": key} 
                 params = {"persist":True}
                 data = regions_availabilities_dict[key]
-                data['UUID'] = uuid_for_persist
+                data['uuid'] = uuid_for_persist
                 response = requests.post(url, params=params, headers=headers, json=data)
                 if(response.status_code != 200):
                     availabilities_response.append("Not persisted: " + key)
@@ -144,7 +144,7 @@ def create_availability():
             if(len(regions_availabilities_dict[key]['availabilities']) > 0):
                 total_count.add(key)
                 data = regions_availabilities_dict[key]
-                data['UUID'] = uuid_for_persist
+                data['uuid'] = uuid_for_persist
                 db_addition = db[region_code + "-persist"].insert_one(data).inserted_id
                 if(db_addition):
                     success_count.add(key)
