@@ -312,7 +312,7 @@ def check_validity_for_availabilities(data):
             response = {}
             response["status"] = "Failed to update"
             response["reason"] = "Cannot create/change availability during the same day!"
-            return response, false
+            return response, False
         
         # I thought about it and it made sense. The athlete shouldn't put availabilty
         # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
@@ -322,7 +322,7 @@ def check_validity_for_availabilities(data):
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "You need to give availability 12 hours in advance!"
-            return return_obj, false
+            return return_obj, False
 
 
         # Athlete shouldn't be able to give availability for 10 days ahead!
@@ -331,9 +331,9 @@ def check_validity_for_availabilities(data):
             return_obj = {}
             return_obj["status"] = "Failed to update"
             return_obj["reason"] = "Cannot create/change availability of 10 days later!"
-            return return_obj, false
+            return return_obj, False
 
-        print("PASSED CONDITIONS")
+    print("PASSED CONDITIONS")
     return 'success', True
 
 def add_availabilities_in_db(region_code, availabilities_response, persisted_data):
