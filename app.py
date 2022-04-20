@@ -11,6 +11,7 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from collections import defaultdict
 from flask import Response
+import uuid
 
 from db_commands import CONNECTION_STRING # CONOR's string
 from helper_country import countries_to_continent
@@ -39,8 +40,11 @@ continent_to_countries = {'EU' : ['France', 'Ireland', 'England'],
 
 @app.route('/')
 def root():
-    location = os.environ["APP_LOCATION"]
-    return make_response(location, 200)
+    persist = request.args.get('blah')
+    # location = os.environ["APP_LOCATION"]
+    if(persist):
+        print("Hi")
+    return make_response(jsonify("Working"), 200)
 
 
 # creating availability endpoint. This is where the user will 'POST'
@@ -76,10 +80,37 @@ def root():
 def create_availability():
     availabilities_response = []
     availability_data = request.get_json()
+    persist = request.args.get('persist')
+    commit = request.args.get('commit')
+    rollback = request.args.get('rollback')
     athlete_email = availability_data['athlete_email']
     availabilities = availability_data['availabilities']
+    location = os.environ["APP_LOCATION"]
+    region_code = region_to_code[location]
 
-    time_now = time_obj.now().timestamp()
+    checks_response, checks_status = check_validity_for_availabilities(availabilities)
+    if(checks_status is False):
+        return make_response(jsonify(checks_response), 406)
+
+    if(persist):
+        db_addition = db[region_code + "-persist"].insert_one(availability_data).inserted_id
+        if(db_addition):
+            return make_response(jsonify(json.loads(dumps(availabilities_response, indent=10))), 200)
+        else:
+            response["status"] = "Failed to add data to persist collection in " + region_code
+            return make_response(jsonify(response), 406)
+
+    if(commit):
+        uuid_persisted = availability_data['uuid']
+        myquery = { "uuid": uuid_persisted }
+        persisted_in_db = db[region_code + "-persist"].find_one(myquery)
+        success = add_availabilities_in_db(availabilities_response, persisted_in_db)
+        return make_response(jsonify(json.loads(dumps(availabilities_response, indent=10))), 200)
+
+    if(rollback):
+        delete_persisted_data(region_code, availability_data['uuid'])
+
+
     regions_availabilities_dict = {'North America':{'athlete_email':athlete_email, 'availabilities':[]},
                                      'Europe':{'athlete_email':athlete_email, 'availabilities':[]}, 
                                     'Australia':{'athlete_email':athlete_email, 'availabilities':[]},
@@ -89,115 +120,231 @@ def create_availability():
         regions_availabilities_dict[a['region']]['availabilities'].append(a)
 
     url = "https://internalLoadBalancerFrontDoor.azurefd.net/createAvailability"
-    location = os.environ["APP_LOCATION"]
+    
+    total_count = set()
+    success_count = set()
+
+    # Transactions persist phase
+    uuid_for_persist = str(uuid.uuid4())
     for key in regions_availabilities_dict.keys():
         if key != location:
             if(len(regions_availabilities_dict[key]['availabilities']) > 0):
+                total_count.add(key)
                 headers = {"x-preferred-backend": key} 
+                params = {"persist":True}
                 data = regions_availabilities_dict[key]
-                response = requests.post(url, headers=headers, json=data)
+                data['UUID'] = uuid_for_persist
+                response = requests.post(url, params=params, headers=headers, json=data)
+                if(response.status_code != 200):
+                    availabilities_response.append("Not persisted: " + key)
+                else:
+                    success_count.add(key)
+        else:
+            if(len(regions_availabilities_dict[key]['availabilities']) > 0):
+                total_count.add(key)
+                data = regions_availabilities_dict[key]
+                data['UUID'] = uuid_for_persist
+                db_addition = db[region_code + "-persist"].insert_one(data).inserted_id
+                if(db_addition):
+                    success_count.add(key)
+                else:
+                    availabilities_response.append("Not persisted: " + key)
+
+    # commit phase
+    if(total_count == success_count):
+        for key in success_count:
+            if key != location:
+                headers = {"x-preferred-backend": key}
+                params = {"commit":True}
+                data = {"uuid":uuid_for_persist}
+                response = requests.post(url,  params=params, headers=headers, json=data)
                 if(response.status_code != 200):
                     availabilities_response.append("Not nice: " + key)
-        else:
-            for athlete_availability in regions_availabilities_dict[key]['availabilities']:
-                region = athlete_availability['region']
-                country = athlete_availability['country']
-                location = athlete_availability['location']
-                #city = athlete_availability['city']
-                date = athlete_availability['date']  # Day/Month/Year
-                daytime = athlete_availability['time'] # e.g., 14:00:00
-                timestamp = float(athlete_availability['timestamp'])
-                # print('timestamp = ' + str(timestamp))
-                # print('difference = ' + str(timestamp - time_obj.now().timestamp()))
-                
-                # Need to compare using the time of the location in which the user will be tested!!!
-                # time_zone = pytz.timezone(region + "/" + city)
-                # local_time = datetime.now(time_zone)
-                
-                # Athlete is trying to schedule during the same day!!!
-                if date == time_obj.today().strftime('%d/%m/%Y'):
-                    print('cant give same day!')
-                    response = {}
-                    response["status"] = "Failed to update"
-                    response["reason"] = "Cannot create/change availability during the same day!"
-                    return make_response(jsonify(response), 406)
-                
-                # I thought about it and it made sense. The athlete shouldn't put availabilty
-                # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
-                # and doping testing time. We can play with it
-                if timestamp - time_now < 12 * 60 * 60:
-                    print("cant < 5 hours")
-                    return_obj = {}
-                    return_obj["status"] = "Failed to update"
-                    return_obj["reason"] = "You need to give availability 12 hours in advance!"
-                    return make_response(jsonify(return_obj), 406)
+                else:
+                    availabilities_response.append(response.json())
+            else:
+                myquery = { "uuid": uuid_for_persist }
+                persisted = db[region_code + "-persist"].find_one(myquery)
+                add_availabilities_in_db(availabilities_response, persisted)
+    else:
+        for key in success_count:
+            if key != location:
+                headers = {"x-preferred-backend": key}
+                params = {"rollback":True}
+                data = {"uuid":uuid_for_persist}
+                response = requests.post(url,  params=params, headers=headers, json=data)
+                if(response.status_code != 200):
+                    availabilities_response.append("Not nice: " + key)
+                else:
+                    availabilities_response.append(response.json())
+            else:
+                delete_persisted_data(region_code, uuid_for_persist)
 
-
-                # Athlete shouldn't be able to give availability for 10 days ahead!
-                if timestamp - time_now > 10 * 24 * 60 * 60:
-                    print("cant give 10 days ahead")
-                    return_obj = {}
-                    return_obj["status"] = "Failed to update"
-                    return_obj["reason"] = "Cannot create/change availability of 10 days later!"
-                    return make_response(jsonify(return_obj), 406)
-
-                # If user already had an appointment for that particular day, remove it
-                # because we're going to update it with the new availability info.
-                # Since the prev availability might be in any of the regions, we should try to delete each 
-                
-                db["NA-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["EU-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["AS-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["AU-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })        
-
-                # If the appointment has already been scheduled, then remove the appointment 
-                # of the athlete. The appointment is always a one-to-one match with
-                # athlete_email and date
-                
-                db["NA-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["EU-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["AS-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                db["AU-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
-                                {"date": {"$eq": date}} ] })
-                    
-                region_code = region_to_code[location]
-                
-                # This is a sample entry added to our db (1 availability)
-                # for each availability, we have an object of the same type.
-        #           {
-        #               athlete_email: 'sedat@gmail.com'               
-        #               region: 'Europe',
-        #               country: 'Ireland',
-        #               location: 'SLS'
-        #               city: 'Dublin',
-        #               date: 24/04/2022
-        #               time: 16:00:00,
-        #               timestamp: 3434334343,
-        #      @@@@@@@  isScheduled: FALSE @@@@@@@@@@@ (we add this below)
-        #          },
-                
-                # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
-                athlete_availability['isScheduled'] = False
-                athlete_availability['athlete_email'] = athlete_email
-                print("PASSED CONDITIONS")
-                #print(athlete_availability)
-                availabilities_response.append(athlete_availability)
-                # Sharding based on region_code (continent)
-                db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
-        
     return make_response(jsonify(json.loads(dumps(availabilities_response, indent=10))), 200)
+
+    # for key in regions_availabilities_dict.keys():
+    #     if key != location:
+    #         if(len(regions_availabilities_dict[key]['availabilities']) > 0):
+    #             headers = {"x-preferred-backend": key} 
+    #             data = regions_availabilities_dict[key]
+    #             response = requests.post(url, headers=headers, json=data)
+    #             if(response.status_code != 200):
+    #                 availabilities_response.append("Not nice: " + key)
+    #     else:
+    #         for athlete_availability in regions_availabilities_dict[key]['availabilities']:
+    #             region = athlete_availability['region']
+    #             country = athlete_availability['country']
+    #             location = athlete_availability['location']
+    #             #city = athlete_availability['city']
+    #             date = athlete_availability['date']  # Day/Month/Year
+    #             daytime = athlete_availability['time'] # e.g., 14:00:00
+    #             timestamp = float(athlete_availability['timestamp'])
+    #             # print('timestamp = ' + str(timestamp))
+    #             # print('difference = ' + str(timestamp - time_obj.now().timestamp()))
+                
+    #             # Need to compare using the time of the location in which the user will be tested!!!
+    #             # time_zone = pytz.timezone(region + "/" + city)
+    #             # local_time = datetime.now(time_zone)
+                
+    #             # Athlete is trying to schedule during the same day!!!
+    #             if date == time_obj.today().strftime('%d/%m/%Y'):
+    #                 print('cant give same day!')
+    #                 response = {}
+    #                 response["status"] = "Failed to update"
+    #                 response["reason"] = "Cannot create/change availability during the same day!"
+    #                 return make_response(jsonify(response), 406)
+                
+    #             # I thought about it and it made sense. The athlete shouldn't put availabilty
+    #             # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
+    #             # and doping testing time. We can play with it
+    #             if timestamp - time_now < 12 * 60 * 60:
+    #                 print("cant < 5 hours")
+    #                 return_obj = {}
+    #                 return_obj["status"] = "Failed to update"
+    #                 return_obj["reason"] = "You need to give availability 12 hours in advance!"
+    #                 return make_response(jsonify(return_obj), 406)
+
+
+    #             # Athlete shouldn't be able to give availability for 10 days ahead!
+    #             if timestamp - time_now > 10 * 24 * 60 * 60:
+    #                 print("cant give 10 days ahead")
+    #                 return_obj = {}
+    #                 return_obj["status"] = "Failed to update"
+    #                 return_obj["reason"] = "Cannot create/change availability of 10 days later!"
+    #                 return make_response(jsonify(return_obj), 406)
+
+    #             # If user already had an appointment for that particular day, remove it
+    #             # because we're going to update it with the new availability info.
+    #             # Since the prev availability might be in any of the regions, we should try to delete each 
+                
+    #             db["NA-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["EU-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["AS-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["AU-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })        
+
+    #             # If the appointment has already been scheduled, then remove the appointment 
+    #             # of the athlete. The appointment is always a one-to-one match with
+    #             # athlete_email and date
+                
+    #             db["NA-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["EU-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["AS-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+    #             db["AU-assignments"].delete_one({ "$and": [{"athlete_email": {"$eq": athlete_email}}, 
+    #                             {"date": {"$eq": date}} ] })
+                    
+                
+    #             # This is a sample entry added to our db (1 availability)
+    #             # for each availability, we have an object of the same type.
+    #     #           {
+    #     #               athlete_email: 'sedat@gmail.com'               
+    #     #               region: 'Europe',
+    #     #               country: 'Ireland',
+    #     #               location: 'SLS'
+    #     #               city: 'Dublin',
+    #     #               date: 24/04/2022
+    #     #               time: 16:00:00,
+    #     #               timestamp: 3434334343,
+    #     #      @@@@@@@  isScheduled: FALSE @@@@@@@@@@@ (we add this below)
+    #     #          },
+                
+    #             # Before adding the availability, make sure to flag the availabbility as 'unscheduled'!
+    #             athlete_availability['isScheduled'] = False
+    #             athlete_availability['athlete_email'] = athlete_email
+    #             print("PASSED CONDITIONS")
+    #             #print(athlete_availability)
+    #             availabilities_response.append(athlete_availability)
+    #             # Sharding based on region_code (continent)
+    #             db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
+        
+    # return make_response(jsonify(json.loads(dumps(availabilities_response, indent=10))), 200)
     
         # db["NA-athletes"].replace_one(
         #     { "athlete_email": athlete_email, "date" : date }, athlete_availability
         # )
 
+
+def delete_persisted_data(code, persisted_uuid):
+    db[code + "-persist"].delete_one({ "$and": {"uuid": {"$eq": persisted_uuid}} })
+
+
+def check_validity_for_availabilities(data):
+    time_now = time_obj.now().timestamp()
+    for athlete_availability in data:
+        date = athlete_availability['date']  # Day/Month/Year
+        daytime = athlete_availability['time'] # e.g., 14:00:00
+        timestamp = float(athlete_availability['timestamp'])
+
+         # Need to compare using the time of the location in which the user will be tested!!!
+        # time_zone = pytz.timezone(region + "/" + city)
+        # local_time = datetime.now(time_zone)
+        
+        # Athlete is trying to schedule during the same day!!!
+        if date == time_obj.today().strftime('%d/%m/%Y'):
+            print('cant give same day!')
+            response = {}
+            response["status"] = "Failed to update"
+            response["reason"] = "Cannot create/change availability during the same day!"
+            return response, false
+        
+        # I thought about it and it made sense. The athlete shouldn't put availabilty
+        # 5 minutes later or an hour later. There has to be at least 12 hours between 'right now'
+        # and doping testing time. We can play with it
+        if timestamp - time_now < 12 * 60 * 60:
+            print("cant < 5 hours")
+            return_obj = {}
+            return_obj["status"] = "Failed to update"
+            return_obj["reason"] = "You need to give availability 12 hours in advance!"
+            return return_obj, false
+
+
+        # Athlete shouldn't be able to give availability for 10 days ahead!
+        if timestamp - time_now > 10 * 24 * 60 * 60:
+            print("cant give 10 days ahead")
+            return_obj = {}
+            return_obj["status"] = "Failed to update"
+            return_obj["reason"] = "Cannot create/change availability of 10 days later!"
+            return return_obj, false
+
+        print("PASSED CONDITIONS")
+    return 'success', true
+
+def add_availabilities_in_db(availabilities_response, persisted_data):
+    success = True
+    email = persisted_data['athlete_email']
+    for athlete_availability in persisted_data['availabilities']:
+        athlete_availability['isScheduled'] = False
+        athlete_availability['athlete_email'] = email 
+        availabilities_response.append(athlete_availability)
+        db_addition = db[region_code + "-athletes"].insert_one(athlete_availability).inserted_id
+        success = success and db_addition
+    return success
 
 
 # FUN PART :)
