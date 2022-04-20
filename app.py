@@ -103,7 +103,6 @@ def create_availability():
             for athlete_availability in regions_availabilities_dict[key]['availabilities']:
                 region = athlete_availability['region']
                 country = athlete_availability['country']
-                location = athlete_availability['location']
                 #city = athlete_availability['city']
                 date = athlete_availability['date']  # Day/Month/Year
                 daytime = athlete_availability['time'] # e.g., 14:00:00
