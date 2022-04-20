@@ -333,7 +333,7 @@ def check_validity_for_availabilities(data):
             return return_obj, false
 
         print("PASSED CONDITIONS")
-    return 'success', true
+    return 'success', True
 
 def add_availabilities_in_db(availabilities_response, persisted_data):
     success = True
