@@ -281,6 +281,7 @@ def check_availability_exists(athlete_email, athlete_availability):
     timestamp_new = float(athlete_availability['timestamp'])
     time_now = time_obj.now().timestamp()
     if(timestamp_new - time_now < 48 * 60 * 60):
+        print(str(timestamp_new))
         response = "Cannot update, date should be more than 48 hours ahead"
         return response, False
 
