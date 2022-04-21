@@ -11,7 +11,6 @@ from bson.json_util import dumps
 from flask_cors import CORS
 from pymongo import MongoClient
 from collections import defaultdict
-from flask import Response
 import uuid
 
 from db_commands import CONNECTION_STRING # CONOR's string
@@ -78,19 +77,19 @@ def root():
 # 
 # }
 
-@app.route('/testQueue', methods=['GET'])
-def export_queue():
-    CONNECTION_STR_QUEUE = 'Endpoint=sb://group6.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=5kneXNBlqHf8oUVOO5EC5sdVOS+aTOqygeJbj2Dq3aQ='
-    QUEUE_NAME = 'group6availability'
-    servicebus_client = ServiceBusClient.from_connection_string(conn_str=CONNECTION_STR_QUEUE, logging_enable=True)
-    with servicebus_client:
-        receiver = servicebus_client.get_queue_receiver(queue_name=QUEUE_NAME, max_wait_time=5)
-        with receiver:
-            for msg in receiver:
-                print("Received: " + str(json.loads(str(msg))))
-                receiver.complete_message(msg)
-                availability_data = json.loads(str(msg))
-                print(availability_data)
+# @app.route('/testQueue', methods=['GET'])
+# def export_queue():
+#     CONNECTION_STR_QUEUE = 'Endpoint=sb://group6.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=5kneXNBlqHf8oUVOO5EC5sdVOS+aTOqygeJbj2Dq3aQ='
+#     QUEUE_NAME = 'group6availability'
+#     servicebus_client = ServiceBusClient.from_connection_string(conn_str=CONNECTION_STR_QUEUE, logging_enable=True)
+#     with servicebus_client:
+#         receiver = servicebus_client.get_queue_receiver(queue_name=QUEUE_NAME, max_wait_time=5)
+#         with receiver:
+#             for msg in receiver:
+#                 print("Received: " + str(json.loads(str(msg))))
+#                 receiver.complete_message(msg)
+#                 availability_data = json.loads(str(msg))
+#                 print(availability_data)
 
 
 @app.route('/createAvailability', methods=['POST'])
@@ -498,6 +497,7 @@ def get_athlete_availabilities(athlete_email):
 @app.route('/getTodaySchedule', methods=['GET'])
 def get_today_schedule():
     today_date = datetime.datetime.today().strftime('%d/%m/%Y')
+    print(today_date)
     today_schedule = []
     for continent_code in continent_to_countries:
         assignments_per_region = list(db[continent_code + "-assignments"].find({"date": {"$eq": today_date}}))
