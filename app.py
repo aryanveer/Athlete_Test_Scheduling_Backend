@@ -253,41 +253,44 @@ def add_availabilities_in_db(region_code, availabilities_response, persisted_dat
         success = success and db_addition
     return success
 
-def check_availability_exists(athlete_email, athlete_availability, time_now):
+
+@app.route('/updateAvailability', methods=['POST'])
+def update_availability():
+    availabilities_updated_response = []
+    data_to_update = request.get_json()
+    email = data_to_update['athlete_email']
+    for availability in data_to_update['availabilities']:
+        response, status = check_availability_exists(email, availability)
+        if(status == False):
+            return make_response(jsonify(response), 406)
+    print("All checks passed for all the data")
+    for availability in data_to_update['availabilities']:
+        regions = ['EU', 'NA', 'AU', 'AS']
+        for region in regions:
+            db[region + "-athletes"].delete_one({ "$and": [{"athlete_email": {"$eq": email}}, 
+                        {"date": {"$eq": availability['date']}} ] })
+        region_to_add = region_to_code[availability['region']]        
+        availability['isScheduled'] = False
+        availability['athlete_email'] = email
+        availabilities_updated_response.append(availability)
+        db_addition = db[region_to_add + "-athletes"].insert_one(availability).inserted_id
+    return make_response(jsonify(json.loads(dumps(availabilities_updated_response, indent=10))), 200)
+
+def check_availability_exists(athlete_email, athlete_availability):
     date = athlete_availability['date']
     timestamp_new = float(athlete_availability['timestamp'])
-    
-    # Has he scheduled in EU collection before?
-    eu_availability = list(db["EU-athletes"].find({"$and": [{"date": {"$eq": date}}, 
-                                                            {"athlete_email": {"$eq": athlete_email}}]})) 
-    if eu_availability:
-        # NOT ALLOWED TO CHANGE
-        return timestamp_new - time_now < 48 * 60 * 60
+    time_now = time_obj.now().timestamp()
+    if(timestamp_new - time_now < 48 * 60 * 60):
+        response = "Cannot update, date should be more than 48 hours ahead"
+        return response, False
 
-
-    # Has he scheduled in NA collection before?
-    na_availability = list(db["NA-athletes"].find({"$and": [{"date": {"$eq": date}}, 
-                                                            {"athlete_email": {"$eq": athlete_email}}]})) 
-    if na_availability:
-        # NOT ALLOWED TO CHANGE
-        return timestamp_new - time_now < 48 * 60 * 60
-
-
-    # Has he scheduled in AS collection before?
-    as_availability = list(db["AS-athletes"].find({"$and": [{"date": {"$eq": date}}, 
-                                                            {"athlete_email": {"$eq": athlete_email}}]})) 
-    if as_availability:
-        # NOT ALLOWED TO CHANGE
-        return timestamp_new - time_now < 48 * 60 * 60
-
-
-    # Has he scheduled in AU collection before?
-    au_availability = list(db["AU-athletes"].find({"$and": [{"date": {"$eq": date}}, 
-                                                            {"athlete_email": {"$eq": athlete_email}}]})) 
-    if au_availability:
-        # NOT ALLOWED TO CHANGE
-        return timestamp_new - time_now < 48 * 60 * 60
-
+    regions = ['EU', 'NA', 'AU', 'AS']
+    for region in regions:
+        data_found = db[region + "-athletes"].find_one({"$and": [{"date": {"$eq": date}}, 
+                                                            {"athlete_email": {"$eq": athlete_email}}]})
+        if(data_found):
+            return "Checks passed and data found", True
+    return "Data not found", False
 
 
 # FUN PART :)
